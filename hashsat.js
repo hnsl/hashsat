@@ -151,7 +151,7 @@ var sha256 = function(main_in) {
 var nonce = define_input_bv(32);
 
 // Compile main in bit vector. Numbers are little endian encoded.
-var main_in = [].concat(define_bv_from_hex(
+var main_in = [].concat(define_bv_hex(
     "01000000" + // Version
     "81cd02ab7e569e8bcd9317e2fe99f2de44d49ab2b8851ba4a308000000000000" + // hashPrevBlock
     "e320b6c2fffc8d750423db8b1eb942ae710e951ed797f7affc8892b0f1fc122b" + // hashMerkleRoot
@@ -163,6 +163,9 @@ var main_in = [].concat(define_bv_from_hex(
 
 // Create a double sha256 problem.
 var main_out = sha256(sha256(main_in));
+
+//constrain_bv_hex(nonce, "42a14695", "ffffffff");
+constrain_bv_hex(main_out, "000000000000000", "fffffffffffffff");
 
 // Solve it.
 satisfy({nonce: nonce, main_out: main_out});
