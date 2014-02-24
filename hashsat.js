@@ -53,13 +53,11 @@ var _debug_satisfy;
 
 var sha256_process = function(in_state, message) {
     assert(message.length === 512);
-    // Initialize the array W.
+    // Initialize all W values.
     var w = new Array(64);
     for (var t = 0; t < 16; t++) {
         w[t] = message.slice(t * 32, t * 32 + 32).reverse();
-        //_debug_satisfy["w" + t] = w[t];
     }
-
     for (var t = 16; t < 64; t++) {
         w[t] = uaddm_bv(
             sha256_ssigma1(w[t - 2]),
@@ -67,32 +65,11 @@ var sha256_process = function(in_state, message) {
             sha256_ssigma0(w[t - 15]),
             w[t - 16]
         );
-        //_debug_satisfy["w" + t] = w[t];
     }
-
     // Run all sha256 iterations.
     var a = in_state.a, b = in_state.b, c = in_state.c, d = in_state.d
     , e = in_state.e, f = in_state.f, g = in_state.g, h = in_state.h;
-
-
-
     for (var t = 0; t < 64; t++) {
-
-        /*
-        _debug_satisfy["a" + t] = a;
-        _debug_satisfy["b" + t] = b;
-        _debug_satisfy["c" + t] = c;
-        _debug_satisfy["d" + t] = d;
-        _debug_satisfy["e" + t] = e;
-        _debug_satisfy["f" + t] = f;
-        _debug_satisfy["g" + t] = g;
-        _debug_satisfy["h" + t] = h;
-
-        if (t === 32) {
-            satisfy(_debug_satisfy);
-            throw new Error("foo");
-        }*/
-
         var temp1 = uaddm_bv(
             h,
             sha256_bsigma1(e),
@@ -113,20 +90,6 @@ var sha256_process = function(in_state, message) {
         b = a;
         a = uaddm_bv(temp1, temp2);
     }
-
-    /*
-    _debug_satisfy["a"] = a;
-    _debug_satisfy["b"] = b;
-    _debug_satisfy["c"] = c;
-    _debug_satisfy["d"] = d;
-    _debug_satisfy["e"] = e;
-    _debug_satisfy["f"] = f;
-    _debug_satisfy["g"] = g;
-    _debug_satisfy["h"] = h;
-    satisfy(_debug_satisfy);
-    throw new Error("foo");*/
-
-
     // Do final add and return the output state.
     var out_state = {
         a: uaddm_bv(in_state.a, a),
@@ -138,18 +101,6 @@ var sha256_process = function(in_state, message) {
         g: uaddm_bv(in_state.g, g),
         h: uaddm_bv(in_state.h, h)
     };
-
-    /*_debug_satisfy["a"] = out_state.a;
-    _debug_satisfy["b"] = out_state.b;
-    _debug_satisfy["c"] = out_state.c;
-    _debug_satisfy["d"] = out_state.d;
-    _debug_satisfy["e"] = out_state.e;
-    _debug_satisfy["f"] = out_state.f;
-    _debug_satisfy["g"] = out_state.g;
-    _debug_satisfy["h"] = out_state.h;
-    satisfy(_debug_satisfy);
-    throw new Error("foo");*/
-
     return out_state;
 };
 
@@ -197,31 +148,6 @@ var sha256 = function(main_in) {
     );
 };
 
-/*var foo = define_bv_hex("1234");
-console.log(foo);
-process.exit(0);*/
-
-var main_input = define_bv_hex("666f6f626172");
-
-_debug_satisfy = {main_input: main_input};
-
-var main_output = sha256(sha256(main_input));
-
-// Solve it.
-satisfy({main_input: main_input, main_output: main_output});
-
-
-/*
-try {
-var main_output = sha256(main_input);
-} catch (e) {
-
-}*/
-
-
-/*
-
-
 var nonce = define_input_bv(32);
 
 // Compile main in bit vector. Numbers are little endian encoded.
@@ -238,14 +164,9 @@ var main_in = [].concat(define_bv_from_hex(
 // Create a double sha256 problem.
 var main_out = sha256(sha256(main_in));
 
-process.exit(0);
-
 // Solve it.
 satisfy({nonce: nonce, main_out: main_out});
 
-
-
-*/
 
 /*
 // Test a shitty hash function.
