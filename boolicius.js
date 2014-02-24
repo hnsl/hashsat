@@ -277,16 +277,37 @@ global.satisfy = function satisfy(main_bv) {
     console.log("converting problem to cnf [" + pcnf_path + "]");
     var cp = require('child_process');
     var limboole = cp.spawn("limboole", ["-d", "-s", pin_path, "-o", pcnf_path], {stdio: ["ignore", "ignore", process.stderr]});
+    var plingeling;
     limboole.on("exit", function(code, signal) {
         if (code !== 0)
             throw new Error("limboole exited with [" + code + "]");
         // Solve problem.
         console.log("solving problem [" + pout_path + "]");
         //var minisat = cp.spawn("minisat", [pcnf_path, pout_path], {stdio: ["ignore", process.stdout, process.stderr]});
-        var minisat = cp.spawn("manysat", ["-ncores=8", pcnf_path, pout_path], {stdio: ["ignore", process.stdout, process.stderr]});
-        minisat.on("exit", on_minisat_exit);
+        plingeling = cp.spawn("plingeling", [pcnf_path], {stdio: ["ignore", "pipe", process.stderr]});
+        plingeling.stdout.on("data", on_plingeling_data);
+        plingeling.on("exit", on_plingeling_exit);
     });
-    var on_minisat_exit = function(code, signal) {
+    var raw_out = "";
+    var line_buf = "";
+    var raw_sol = "";
+    var on_plingeling_data = function(data) {
+        raw_out += data;
+        var full_data = line_buf + data;
+        var lines = full_data.split("\n");
+        line_buf = lines.pop();
+        lines.forEach(function(line) {
+            if (line.length === 0)
+                return;
+            if (line.charAt(0) === "v") {
+                raw_sol += line.substring(1).trim() + " ";
+            } else {
+                process.stdout.write(line + "\n");
+            }
+        });
+    };
+    var on_plingeling_exit = function(code, signal) {
+        fs.writeFileSync(pout_path, raw_out);
         if (code === 20)
             throw new Error("minisat reported that problem was [UNSATISFIABLE]");
         if (code !== 10)
@@ -306,10 +327,7 @@ global.satisfy = function satisfy(main_bv) {
         });
         // Parse and index solution.
         console.log("parsing & indexing solution");
-        var cnf_out = fs.readFileSync(pout_path, "utf-8");
-        if (cnf_out.match(/^SAT\n/) === null)
-            throw new Error("did not find [SAT] marker in solution");
-        var raw_sol_v = cnf_out.substring(4).split(" ");
+        var raw_sol_v = raw_sol.split(" ");
         var solution_v = Array(raw_sol_v.length + 1);
         for (var i = 0; i < raw_sol_v.length; i++)
             solution_v[i + 1] = (Number(raw_sol_v[i]) >= 0);
@@ -339,8 +357,8 @@ global.satisfy = function satisfy(main_bv) {
             if (cur_n2v !== 1)
                 flush_fn();
             var summary = key + "/n: 0x" + number_v + "\n"
-            + key + "/d: [" + data_v + "]";
-            console.log(summary);
+            + key + "/d: [" + data_v + "]\n";
+            process.stdout.write(summary);
             fs.appendFileSync(psum_path, summary);
         }
         process.exit(0);
