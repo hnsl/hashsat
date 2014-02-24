@@ -37,7 +37,7 @@ global.constrain_bit = function constrain_bit(bit, is_set) {
 global.define_bit = function define_bit(is_set) {
     var bit = new Bit();
     conjunctions.push("(" + (is_set? "": "!") + bit + ")");
-    bit.value = !!is_set;
+    //x-dbg/ bit.value = !!is_set;
     bit.defined = true;
     return bit;
 };
@@ -185,26 +185,26 @@ global.define_input_bv = function define_input_bv(n) {
     return o_bv;
 };
 
-/// Defines a new bit vector initialized with the specified value.
-global.define_bv = function define_bv(n, init) {
+/// Defines a new bit vector as the specified value.
+global.define_bv = function define_bv(n, val) {
     assert(n > 0 & n <= 32);
     var o_bv = new Array(n);
     for (var i = 0; i < n; i++) {
-        o_bv[i] = define_bit((init & 1) !== 0);
-        init = (init >> 1);
+        o_bv[i] = define_bit((val & 1) !== 0);
+        val = (val >> 1);
     }
     return o_bv;
 };
 
-/// Defines a new bit vector based on the specified hexadecimal input string.
-global.define_bv_hex = function define_bv_hex(hex_str) {
-    assert(hex_str.length > 0);
-    var o_bv = new Array(hex_str.length * 4);
-    for (var i = 0; i < hex_str.length; i++) {
-        var bit4 = parseInt(hex_str.charAt(i), 16);
+/// Defines a new bit vector as the specified hexadecimal data value.
+global.define_bv_hex = function define_bv_hex(hex_val) {
+    assert(hex_val.length > 0);
+    var o_bv = new Array(hex_val.length * 4);
+    for (var i = 0; i < hex_val.length; i++) {
+        var vbit4 = parseInt(hex_val.charAt(i), 16);
         for (var j = 0; j < 4; j++) {
-            o_bv[i * 4 + 3 - j] = define_bit((bit4 & 1) !== 0);
-            bit4 = (bit4 >> 1);
+            o_bv[i * 4 + 3 - j] = define_bit((vbit4 & 1) !== 0);
+            vbit4 = (vbit4 >> 1);
         }
     }
     return o_bv;
@@ -212,15 +212,30 @@ global.define_bv_hex = function define_bv_hex(hex_str) {
 
 /// Takes an already defined bit vector and adds additional constraints.
 /// Only the bits that are set in the mask are constrained.
-global.constrain_bv = function constrain_bv(bv, set, mask) {
+global.constrain_bv = function constrain_bv(bv, val, mask) {
     assert(bv.length > 0 & bv.length <= 32);
     for (var i = 0; i < bv.length; i++) {
-        if ((mask & 1) !== 0) {
-            console.log("constraining bit [" + i + "] to [" + ((set & 1) !== 0) + "]");
-            constrain_bit(bv[i], (set & 1) !== 0);
-        }
-        set = (set >> 1);
+        if ((mask & 1) !== 0)
+            constrain_bit(bv[i], (val & 1) !== 0);
+        val = (val >> 1);
         mask = (mask >> 1);
+    }
+};
+
+/// Takes an already defined bit vector and adds additional constraints.
+/// Only the bits that are set in the mask are constrained.
+global.constrain_bv_hex = function constrain_bv_hex(bv, hex_val, hex_mask) {
+    assert(hex_val.length === hex_mask.length);
+    assert(bv.length >= hex_val.length * 4);
+    for (var i = 0; i < bv.length; i++) {
+        var vbit4 = parseInt(hex_val.charAt(i), 16);
+        var mbit4 = parseInt(hex_mask.charAt(i), 16);
+        for (var j = 0; j < 4; j++) {
+            if ((mbit4 & 1) !== 0)
+                constrain_bit(bv[i * 4 + 3 - j], (vbit4 & 1) !== 0);
+            vbit4 = (vbit4 >> 1);
+            mbit4 = (mbit4 >> 1);
+        }
     }
 };
 
@@ -267,7 +282,8 @@ global.satisfy = function satisfy(main_bv) {
             throw new Error("limboole exited with [" + code + "]");
         // Solve problem.
         console.log("solving problem [" + pout_path + "]");
-        var minisat = cp.spawn("minisat", [pcnf_path, pout_path], {stdio: ["ignore", process.stdout, process.stderr]});
+        //var minisat = cp.spawn("minisat", [pcnf_path, pout_path], {stdio: ["ignore", process.stdout, process.stderr]});
+        var minisat = cp.spawn("manysat", ["-ncores=8", pcnf_path, pout_path], {stdio: ["ignore", process.stdout, process.stderr]});
         minisat.on("exit", on_minisat_exit);
     });
     var on_minisat_exit = function(code, signal) {
